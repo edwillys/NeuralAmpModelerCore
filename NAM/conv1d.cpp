@@ -1,7 +1,6 @@
 #include "conv1d.h"
 #include "compiler.h"
 #include <cstring>
-#include <stdexcept>
 
 namespace nam
 {
@@ -59,13 +58,13 @@ void Conv1D::set_size_(const int in_channels, const int out_channels, const int 
   // Validate that channels divide evenly by groups
   if (in_channels % groups != 0)
   {
-    throw std::runtime_error("in_channels (" + std::to_string(in_channels) + ") must be divisible by numGroups ("
-                             + std::to_string(groups) + ")");
+    NAM_THROW(std::runtime_error("in_channels (" + std::to_string(in_channels) + ") must be divisible by numGroups ("
+                             + std::to_string(groups) + ")"));
   }
   if (out_channels % groups != 0)
   {
-    throw std::runtime_error("out_channels (" + std::to_string(out_channels) + ") must be divisible by numGroups ("
-                             + std::to_string(groups) + ")");
+    NAM_THROW(std::runtime_error("out_channels (" + std::to_string(out_channels) + ") must be divisible by numGroups ("
+                             + std::to_string(groups) + ")"));
   }
 
   this->_num_groups = groups;

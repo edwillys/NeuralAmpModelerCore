@@ -207,7 +207,7 @@ void A2FastModel<Channels>::_load_weights(std::vector<float>& weights)
 
   auto take = [&]() -> float {
     if (it == end)
-      throw std::runtime_error("A2FastModel: weight stream exhausted");
+      NAM_THROW(std::runtime_error("A2FastModel: weight stream exhausted"));
     return *it++;
   };
 
@@ -272,7 +272,7 @@ void A2FastModel<Channels>::_load_weights(std::vector<float>& weights)
   {
     std::stringstream ss;
     ss << "A2FastModel: weight stream has " << std::distance(it, end) << " trailing bytes";
-    throw std::runtime_error(ss.str());
+    NAM_THROW(std::runtime_error(ss.str()));
   }
 }
 
@@ -702,7 +702,7 @@ struct A2FastConfig : public ModelConfig
       return std::make_unique<A2FastModel<3>>(std::move(weights), sampleRate);
     if (channels == 8)
       return std::make_unique<A2FastModel<8>>(std::move(weights), sampleRate);
-    throw std::runtime_error("A2FastConfig: unsupported channel count " + std::to_string(channels));
+    NAM_THROW(std::runtime_error("A2FastConfig: unsupported channel count " + std::to_string(channels)));
   }
 };
 
@@ -914,7 +914,7 @@ std::unique_ptr<ModelConfig> create_a2_fast_config(const nlohmann::json& config,
   (void)sampleRate;
   int ch = 0;
   if (!is_a2_shape(config, &ch))
-    throw std::runtime_error("create_a2_fast_config: config does not match A2 shape");
+    NAM_THROW(std::runtime_error("create_a2_fast_config: config does not match A2 shape"));
   auto out = std::make_unique<A2FastConfig>();
   out->channels = ch;
   return out;

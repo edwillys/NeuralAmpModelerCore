@@ -86,6 +86,7 @@ LinearImplementation parse_implementation(const std::string& implementation);
 /// \brief String name for a Linear implementation.
 std::string implementation_to_string(const LinearImplementation implementation);
 
+#if NAM_HAS_JSON
 /// \brief Parse Linear configuration from JSON
 /// \param config JSON configuration object
 /// \return LinearConfig
@@ -96,6 +97,7 @@ LinearConfig parse_config_json(const nlohmann::json& config);
 /// \param sampleRate Expected sample rate in Hz
 /// \return unique_ptr<ModelConfig> wrapping a LinearConfig
 std::unique_ptr<ModelConfig> create_config(const nlohmann::json& config, double sampleRate);
+#endif
 } // namespace linear
 
 } // namespace nam
