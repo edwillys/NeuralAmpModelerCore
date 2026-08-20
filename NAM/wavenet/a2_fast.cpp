@@ -67,6 +67,11 @@ public:
 
   void process(NAM_SAMPLE** input, NAM_SAMPLE** output, int num_frames) override;
   int GetPrewarmSamples() override { return _prewarm_samples; }
+  void SetLayerObserver(LayerObserver observer, void* context) override
+  {
+    _layer_observer = observer;
+    _layer_observer_context = context;
+  }
 
 protected:
   void SetMaxBufferSize(int maxBufferSize) override;
@@ -141,6 +146,8 @@ private:
   std::vector<float> _head_out; // float32 head output before writing to NAM_SAMPLE
 
   int _prewarm_samples = 0;
+  LayerObserver _layer_observer = nullptr;
+  void* _layer_observer_context = nullptr;
 
   void _load_weights(std::vector<float>& weights);
   void _ring_write(Layer& L, int num_frames);
@@ -618,7 +625,7 @@ void A2FastModel<Channels>::_layer_forward(int layer_idx, const float* cond, int
   {
     case 6: _layer_forward_k<6>(L, cond, num_frames); break;
     case 15: _layer_forward_k<15>(L, cond, num_frames); break;
-    default: throw std::runtime_error("A2FastModel: unexpected kernel_size " + std::to_string(L.kernel_size));
+    default: NAM_THROW(std::runtime_error("A2FastModel: unexpected kernel_size " + std::to_string(L.kernel_size)));
   }
 }
 
@@ -679,8 +686,23 @@ void A2FastModel<Channels>::process(NAM_SAMPLE** input, NAM_SAMPLE** output, int
   // Zero head accumulator.
   std::memset(_head_sum.data(), 0, static_cast<size_t>(num_frames) * Channels * sizeof(float));
 
-  for (int li = 0; li < kNumLayers; li++)
-    _layer_forward(li, cond, num_frames);
+  if (_layer_observer != nullptr)
+  {
+    for (int li = 0; li < kNumLayers; li++)
+    {
+      _layer_observer(_layer_observer_context, 0, li, true);
+      _layer_forward(li, cond, num_frames);
+      _layer_observer(_layer_observer_context, 0, li, false);
+    }
+  }
+  else
+  {
+    for (int li = 0; li < kNumLayers; li++)
+    {
+      _layer_forward(li, cond, num_frames);
+    }
+  }
+
 
   // Output.
   float* head_out = _head_out.data();
@@ -705,6 +727,20 @@ struct A2FastConfig : public ModelConfig
     NAM_THROW(std::runtime_error("A2FastConfig: unsupported channel count " + std::to_string(channels)));
   }
 };
+
+} // namespace
+
+std::unique_ptr<ModelConfig> create_a2_fast_config(const int channels)
+{
+  auto out = std::make_unique<A2FastConfig>();
+  out->channels = channels;
+  return out;
+}
+
+#if NAM_HAS_JSON
+
+namespace
+{
 
 // -----------------------------------------------------------------------------
 // Detector helpers
@@ -915,10 +951,10 @@ std::unique_ptr<ModelConfig> create_a2_fast_config(const nlohmann::json& config,
   int ch = 0;
   if (!is_a2_shape(config, &ch))
     NAM_THROW(std::runtime_error("create_a2_fast_config: config does not match A2 shape"));
-  auto out = std::make_unique<A2FastConfig>();
-  out->channels = ch;
-  return out;
+  return create_a2_fast_config(ch);
 }
+
+#endif // NAM_HAS_JSON
 
 } // namespace a2_fast
 } // namespace wavenet

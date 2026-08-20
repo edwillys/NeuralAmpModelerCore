@@ -413,6 +413,14 @@ void nam::wavenet::detail::LayerArray::SetMaxBufferSize(const int maxBufferSize)
   this->_head_inputs.resize(this->_head_output_size, maxBufferSize);
 }
 
+void nam::wavenet::detail::LayerArray::SetObserver(
+  const DSP::LayerObserver observer, void* const context, const size_t layerArrayIndex)
+{
+  _layer_observer = observer;
+  _layer_observer_context = context;
+  _layer_array_index = layerArrayIndex;
+}
+
 
 long nam::wavenet::detail::LayerArray::get_receptive_field() const
 {
@@ -462,14 +470,20 @@ void nam::wavenet::detail::LayerArray::ProcessInner(const Eigen::MatrixXf& layer
     if (i == 0)
     {
       // First layer consumes the rechannel output buffer
+      if (_layer_observer != nullptr)
+        _layer_observer(_layer_observer_context, _layer_array_index, i, true);
       this->_layers[i].Process(rechannel_output, condition, num_frames);
     }
     else
     {
       // Subsequent layers consume the full output buffer of the previous layer
       Eigen::MatrixXf& prev_output = this->_layers[i - 1].GetOutputNextLayer();
+      if (_layer_observer != nullptr)
+        _layer_observer(_layer_observer_context, _layer_array_index, i, true);
       this->_layers[i].Process(prev_output, condition, num_frames);
     }
+    if (_layer_observer != nullptr)
+      _layer_observer(_layer_observer_context, _layer_array_index, i, false);
 
     // Accumulate head output from this layer
 #ifdef NAM_USE_INLINE_GEMM
@@ -610,6 +624,7 @@ nam::wavenet::WaveNet::WaveNet(const int in_channels,
         NAM_THROW(std::runtime_error(ss.str().c_str()));
       }
   }
+
   this->set_weights_(weights);
 
   // Finally, figure out how much pre-warming is needed for this model.
@@ -694,6 +709,13 @@ void nam::wavenet::WaveNet::SetPrewarmOnReset(const bool prewarmOnReset)
   DSP::SetPrewarmOnReset(prewarmOnReset);
   if (this->_condition_dsp != nullptr)
     this->_condition_dsp->SetPrewarmOnReset(prewarmOnReset);
+}
+
+void nam::wavenet::WaveNet::SetLayerObserver(const LayerObserver observer,
+                                             void* const context)
+{
+  for (size_t index = 0; index < _layer_arrays.size(); ++index)
+    _layer_arrays[index].SetObserver(observer, context, index);
 }
 
 void nam::wavenet::WaveNet::_process_condition(const int num_frames)
