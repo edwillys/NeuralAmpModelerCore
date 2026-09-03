@@ -6,6 +6,7 @@
 #if NAM_HAS_JSON
   #include <fstream>
   #include "json.hpp"
+  #include "nam_file.h"
   #include "registry.h"
 #endif
 
@@ -163,11 +164,7 @@ std::unique_ptr<DSP> get_dsp(const nlohmann::json& config, DspLoadOptions option
 std::unique_ptr<DSP> get_dsp(const std::filesystem::path config_filename, dspData& returnedConfig,
                              DspLoadOptions options)
 {
-  if (!std::filesystem::exists(config_filename))
-    NAM_THROW(std::runtime_error("Config file doesn't exist!\n"));
-  std::ifstream i(config_filename);
-  nlohmann::json j;
-  i >> j;
+  const auto j = validate_nam_file(config_filename);
   populate_dsp_data(j, returnedConfig);
 
   /*Copy to a new dsp_config object for get_dsp below,

@@ -62,6 +62,7 @@ public:
   void process(NAM_SAMPLE** input, NAM_SAMPLE** output, const int num_frames) override;
 
   void SetLayerObserver(LayerObserver observer, void* context) override;
+  void prewarm() override;
 
   void SetPrewarmOnReset(const bool prewarmOnReset) override;
 
@@ -121,6 +122,9 @@ private:
 
   int mPrewarmSamples = 0; // Pre-compute during initialization
 
+  bool HasCachedPrewarmState() const;
+  void PrewarmFromCache();
+  void CacheStateAsPrewarmed();
 };
 
 /// \brief Configuration for a WaveNet model

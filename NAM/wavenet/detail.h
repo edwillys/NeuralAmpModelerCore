@@ -225,6 +225,10 @@ public:
   /// \return Const reference to the internal Conv1D object
   const Conv1D& get_conv() const { return _conv; }
 
+  bool HasCachedPrewarmState() const { return _conv.HasCachedPrewarmState(); }
+  void PrewarmFromCache() { _conv.PrewarmFromCache(); }
+  void CacheStateAsPrewarmed() { _conv.CacheStateAsPrewarmed(); }
+
 private:
   // The dilated convolution at the front of the block
   Conv1D _conv;
@@ -339,6 +343,10 @@ public:
   /// \return Receptive field size
   long get_receptive_field() const;
 
+  bool HasCachedPrewarmState() const;
+  void PrewarmFromCache();
+  void CacheStateAsPrewarmed();
+
 private:
   // The rechannel before the layers
   Conv1x1 _rechannel;
@@ -382,6 +390,10 @@ public:
   void process(Eigen::MatrixXf& work, int num_frames);
 
   const Eigen::MatrixXf& get_last_output() const { return _convs.back().GetOutput(); }
+
+  bool HasCachedPrewarmState() const;
+  void PrewarmFromCache();
+  void CacheStateAsPrewarmed();
 
 private:
   std::vector<nam::Conv1D> _convs;
