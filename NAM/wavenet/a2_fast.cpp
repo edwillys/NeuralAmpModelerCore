@@ -27,6 +27,23 @@
 
   #include "../dsp.h"
 
+  // Manual placement of fast code sections into NAM_SECTION_CODE_FAST
+  // GCC drops section attributes from implicit template specializations when they are applied to the primary template, 
+  // so we must explicitly instantiate the methods we want in NAM_SECTION_CODE_FAST
+  #define NAM_INSTANTIATE_A2_FAST_METHODS(ChannelCount) \
+    template NAM_SECTION_CODE_FAST void A2FastModel<ChannelCount>::_ring_write( \
+      A2FastModel<ChannelCount>::Layer&, int); \
+    template NAM_SECTION_CODE_FAST void A2FastModel<ChannelCount>::_head_ring_write(int); \
+    template NAM_SECTION_CODE_FAST void A2FastModel<ChannelCount>::_layer_forward( \
+      int, const float*, int); \
+    template NAM_SECTION_CODE_FAST void A2FastModel<ChannelCount>::_head_forward(float*, int); \
+    template NAM_SECTION_CODE_FAST void A2FastModel<ChannelCount>::_layer_forward_k<6>( \
+      A2FastModel<ChannelCount>::Layer&, const float*, int); \
+    template NAM_SECTION_CODE_FAST void A2FastModel<ChannelCount>::_layer_forward_k<15>( \
+      A2FastModel<ChannelCount>::Layer&, const float*, int); \
+    template NAM_SECTION_CODE_FAST void A2FastModel<ChannelCount>::process( \
+      NAM_SAMPLE**, NAM_SAMPLE**, int);
+
 namespace nam
 {
 namespace wavenet
@@ -101,7 +118,7 @@ public:
   A2FastModel(std::vector<float> weights, double expected_sample_rate);
   ~A2FastModel() override = default;
 
-  NAM_SECTION_CODE_FAST void process(NAM_SAMPLE** input, NAM_SAMPLE** output, int num_frames) override;
+  void process(NAM_SAMPLE** input, NAM_SAMPLE** output, int num_frames) override;
   void prewarm() override;
   int GetPrewarmSamples() override { return _prewarm_samples; }
   void SetLayerObserver(LayerObserver observer, void* context) override
@@ -195,16 +212,16 @@ private:
   bool HasCachedPrewarmState() const { return _has_cached_prewarm_state; }
   void PrewarmFromCache();
   void CacheStateAsPrewarmed();
-  NAM_SECTION_CODE_FAST void _ring_write(Layer& L, int num_frames);
-  NAM_SECTION_CODE_FAST void _head_ring_write(int num_frames);
-  NAM_SECTION_CODE_FAST void _layer_forward(int layer_idx, const float* cond, int num_frames);
-  NAM_SECTION_CODE_FAST void _head_forward(float* output, int num_frames);
+  void _ring_write(Layer& L, int num_frames);
+  void _head_ring_write(int num_frames);
+  void _layer_forward(int layer_idx, const float* cond, int num_frames);
+  void _head_forward(float* output, int num_frames);
 
   // Compile-time-specialized per-layer kernel. KernelSize is lifted to a
   // template parameter so clang can fully unroll the tap loop and schedule
   // FMAs across taps. For the A2 shape we only need K=6 and K=15.
   template <int KernelSize>
-  NAM_SECTION_CODE_FAST void _layer_forward_k(Layer& L, const float* cond, int num_frames);
+  void _layer_forward_k(Layer& L, const float* cond, int num_frames);
 };
 
 // -----------------------------------------------------------------------------
@@ -461,7 +478,7 @@ void A2FastModel<Channels>::CacheStateAsPrewarmed()
 //   and reset write_pos. That memmove is the jitter spike we're measuring.
 // -----------------------------------------------------------------------------
 template <int Channels>
-NAM_SECTION_CODE_FAST void A2FastModel<Channels>::_ring_write(Layer& L, int num_frames)
+void A2FastModel<Channels>::_ring_write(Layer& L, int num_frames)
 {
   #if NAM_A2_RING_MODE == 1
   const int mbs = GetMaxBufferSize();
@@ -494,7 +511,7 @@ NAM_SECTION_CODE_FAST void A2FastModel<Channels>::_ring_write(Layer& L, int num_
 }
 
 template <int Channels>
-NAM_SECTION_CODE_FAST void A2FastModel<Channels>::_head_ring_write(int num_frames)
+void A2FastModel<Channels>::_head_ring_write(int num_frames)
 {
   #if NAM_A2_RING_MODE == 1
   const int mbs = GetMaxBufferSize();
@@ -537,7 +554,7 @@ NAM_SECTION_CODE_FAST void A2FastModel<Channels>::_head_ring_write(int num_frame
 // runtime dispatcher below for each A2 kernel size (6 and 15).
 template <int Channels>
 template <int KernelSize>
-NAM_SECTION_CODE_FAST void A2FastModel<Channels>::_layer_forward_k(Layer& L, const float* cond, int num_frames)
+void A2FastModel<Channels>::_layer_forward_k(Layer& L, const float* cond, int num_frames)
 {
   constexpr int K = KernelSize;
   const int D = L.dilation;
@@ -735,7 +752,7 @@ NAM_SECTION_CODE_FAST void A2FastModel<Channels>::_layer_forward_k(Layer& L, con
 // For the A2 shape the detector only admits K in {6, 15}; any other value
 // here means something passed the detector that shouldn't have.
 template <int Channels>
-NAM_SECTION_CODE_FAST void A2FastModel<Channels>::_layer_forward(int layer_idx, const float* cond, int num_frames)
+void A2FastModel<Channels>::_layer_forward(int layer_idx, const float* cond, int num_frames)
 {
   Layer& L = _layers[layer_idx];
   _ring_write(L, num_frames);
@@ -751,7 +768,7 @@ NAM_SECTION_CODE_FAST void A2FastModel<Channels>::_layer_forward(int layer_idx, 
 // Head: K=16 dilation-1 conv from Channels to 1, plus bias + scale.
 // -----------------------------------------------------------------------------
 template <int Channels>
-NAM_SECTION_CODE_FAST void A2FastModel<Channels>::_head_forward(float* output, int num_frames)
+void A2FastModel<Channels>::_head_forward(float* output, int num_frames)
 {
   _head_ring_write(num_frames);
   #if NAM_A2_RING_MODE == 1
@@ -781,7 +798,7 @@ NAM_SECTION_CODE_FAST void A2FastModel<Channels>::_head_forward(float* output, i
 // DSP::process override
 // -----------------------------------------------------------------------------
 template <int Channels>
-NAM_SECTION_CODE_FAST void A2FastModel<Channels>::process(NAM_SAMPLE** input, NAM_SAMPLE** output, int num_frames)
+void A2FastModel<Channels>::process(NAM_SAMPLE** input, NAM_SAMPLE** output, int num_frames)
 {
   if (num_frames > GetMaxBufferSize())
     SetMaxBufferSize(num_frames);
@@ -828,6 +845,11 @@ NAM_SECTION_CODE_FAST void A2FastModel<Channels>::process(NAM_SAMPLE** input, NA
   for (int f = 0; f < num_frames; f++)
     out0[f] = static_cast<NAM_SAMPLE>(head_out[f]);
 }
+
+  NAM_INSTANTIATE_A2_FAST_METHODS(3)
+  NAM_INSTANTIATE_A2_FAST_METHODS(8)
+
+  #undef NAM_INSTANTIATE_A2_FAST_METHODS
 
 // -----------------------------------------------------------------------------
 // A2FastConfig — wraps the constructed DSP behind the ModelConfig interface.
