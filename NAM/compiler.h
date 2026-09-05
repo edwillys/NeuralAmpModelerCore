@@ -38,6 +38,11 @@
   #define NAM_HAS_FILESYSTEM 1
 #endif
 
+#ifndef NAM_SECTION_CODE_FAST
+  // Intentionally empty by default; target builds may place hot code in fast memory.
+  #define NAM_SECTION_CODE_FAST
+#endif
+
 namespace nam
 {
 namespace detail
