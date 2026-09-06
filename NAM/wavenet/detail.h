@@ -307,9 +307,6 @@ public:
   void Process(const Eigen::MatrixXf& layer_inputs, const Eigen::MatrixXf& condition,
                const Eigen::MatrixXf& head_inputs, const int num_frames);
 
-  void SetObserver(DSP::LayerObserver observer, void* context,
-                   size_t layerArrayIndex);
-
   /// \brief Get output from last layer (for next layer array)
   ///
   /// Returns the full pre-allocated buffer; only the first num_frames columns
@@ -364,9 +361,6 @@ private:
 
   // Head output size from each layer (head1x1.out_channels if active, else bottleneck)
   const int _head_output_size;
-  DSP::LayerObserver _layer_observer = nullptr;
-  void* _layer_observer_context = nullptr;
-  size_t _layer_array_index = 0;
 
   long _get_channels() const;
   // Common processing logic after head inputs are set

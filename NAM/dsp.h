@@ -76,9 +76,6 @@ private:
 class DSP
 {
 public:
-  using LayerObserver = void (*)(void* context, size_t layerArrayIndex,
-                                 size_t layerIndex, bool starting);
-
   /// \brief Constructor
   ///
   /// \param in_channels Number of input channels
@@ -109,7 +106,6 @@ public:
   ///
   /// A virtual query rather than a dynamic_cast, so callers work without RTTI.
   virtual SlimmableModel* GetSlimmableModel() { return nullptr; }
-  virtual void SetLayerObserver(LayerObserver observer, void* context) {}
   /// \brief Get the expected sample rate
   /// \return Expected sample rate in Hz (-1.0 if unknown)
   double GetExpectedSampleRate() const { return mExpectedSampleRate; };

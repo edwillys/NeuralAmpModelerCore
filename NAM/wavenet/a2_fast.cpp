@@ -121,11 +121,6 @@ public:
   void process(NAM_SAMPLE** input, NAM_SAMPLE** output, int num_frames) override;
   void prewarm() override;
   int GetPrewarmSamples() override { return _prewarm_samples; }
-  void SetLayerObserver(LayerObserver observer, void* context) override
-  {
-    _layer_observer = observer;
-    _layer_observer_context = context;
-  }
 
 protected:
   void SetMaxBufferSize(int maxBufferSize) override;
@@ -204,8 +199,6 @@ private:
   std::vector<float> _head_out; // float32 head output before writing to NAM_SAMPLE
 
   int _prewarm_samples = 0;
-  LayerObserver _layer_observer = nullptr;
-  void* _layer_observer_context = nullptr;
   bool _has_cached_prewarm_state = false;
 
   void _load_weights(std::vector<float>& weights);
@@ -821,21 +814,9 @@ void A2FastModel<Channels>::process(NAM_SAMPLE** input, NAM_SAMPLE** output, int
   // Zero head accumulator.
   std::memset(_head_sum.data(), 0, static_cast<size_t>(num_frames) * Channels * sizeof(float));
 
-  if (_layer_observer != nullptr)
+  for (int li = 0; li < kNumLayers; li++)
   {
-    for (int li = 0; li < kNumLayers; li++)
-    {
-      _layer_observer(_layer_observer_context, 0, li, true);
-      _layer_forward(li, cond, num_frames);
-      _layer_observer(_layer_observer_context, 0, li, false);
-    }
-  }
-  else
-  {
-    for (int li = 0; li < kNumLayers; li++)
-    {
-      _layer_forward(li, cond, num_frames);
-    }
+    _layer_forward(li, cond, num_frames);
   }
 
 
